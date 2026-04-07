@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Download AList and Bore binaries
+      run: |
+        New-Item -ItemType Directory -Force -Path resources
+        Invoke-WebRequest -Uri "https://github.com/alist-org/alist/releases/latest/download/alist-windows-amd64.zip" -OutFile "alist.zip"
+        Expand-Archive -Path "alist.zip" -DestinationPath "alist-temp"
+        Copy-Item -Path "alist-temp\alist.exe" -Destination "resources\alist.exe"
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/latest/download/bore-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+        Expand-Archive -Path "bore.zip" -DestinationPath "bore-temp"
+        Copy-Item -Path "bore-temp\bore.exe" -Destination "resources\bore.exe"
+        Remove-Item -Recurse -Force "alist.zip", "alist-temp", "bore.zip", "bore-temp"
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: alist-bore
+        path: src-tauri\target\release\AListBore.exe
