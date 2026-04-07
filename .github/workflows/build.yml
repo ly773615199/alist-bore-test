@@ -47,9 +47,10 @@ jobs:
         Expand-Archive -Path "alist.zip" -DestinationPath "alist-temp"
         Copy-Item -Path "alist-temp\alist.exe" -Destination "resources\alist.exe"
         Remove-Item -Recurse -Force "alist.zip", "alist-temp"
-        # Bore
-        $boreTag = (Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -UseBasicParsing | ConvertFrom-Json).tag_name
-        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/$boreTag/bore-$boreTag-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip" -UseBasicParsing
+        # Bore - get exact download URL from API
+        $assets = Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -UseBasicParsing | ConvertFrom-Json
+        $boreUrl = ($assets.assets | Where-Object { $_.name -like "*x86_64-pc-windows-msvc.zip" }).browser_download_url
+        Invoke-WebRequest -Uri $boreUrl -OutFile "bore.zip" -UseBasicParsing
         Expand-Archive -Path "bore.zip" -DestinationPath "bore-temp"
         Copy-Item -Path "bore-temp\bore.exe" -Destination "resources\bore.exe"
         Remove-Item -Recurse -Force "bore.zip", "bore-temp"
@@ -61,13 +62,16 @@ jobs:
         set -e
         mkdir -p resources
         # AList
-        curl -fSL --retry 3 --retry-delay 5 "https://github.com/AlistGo/alist/releases/latest/download/alist-linux-amd64.tar.gz" -o alist.tar.gz
+        curl -fSL --retry 3 --retry-delay 5 \
+          "https://github.com/AlistGo/alist/releases/latest/download/alist-linux-amd64.tar.gz" -o alist.tar.gz
         tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
         rm -f alist.tar.gz
-        # Bore
-        boreTag=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
-        curl -fSL --retry 3 --retry-delay 5 "https://github.com/ekzhang/bore/releases/download/${boreTag}/bore-${boreTag}-x86_64-unknown-linux-musl.tar.gz" -o bore.tar.gz
+        # Bore - get exact download URL from API
+        boreUrl=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" \
+          | python3 -c "import sys,json; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if 'x86_64-unknown-linux-musl.tar.gz' in a['name']]")
+        echo "Downloading bore from: $boreUrl"
+        curl -fSL --retry 3 --retry-delay 5 "$boreUrl" -o bore.tar.gz
         tar xzf bore.tar.gz
         chmod +x bore && mv bore resources/
         rm -f bore.tar.gz
@@ -79,13 +83,16 @@ jobs:
         set -e
         mkdir -p resources
         # AList (amd64, works on both Intel and Apple Silicon via Rosetta)
-        curl -fSL --retry 3 --retry-delay 5 "https://github.com/AlistGo/alist/releases/latest/download/alist-darwin-amd64.tar.gz" -o alist.tar.gz
+        curl -fSL --retry 3 --retry-delay 5 \
+          "https://github.com/AlistGo/alist/releases/latest/download/alist-darwin-amd64.tar.gz" -o alist.tar.gz
         tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
         rm -f alist.tar.gz
-        # Bore
-        boreTag=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
-        curl -fSL --retry 3 --retry-delay 5 "https://github.com/ekzhang/bore/releases/download/${boreTag}/bore-${boreTag}-x86_64-apple-darwin.tar.gz" -o bore.tar.gz
+        # Bore - get exact download URL from API
+        boreUrl=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" \
+          | python3 -c "import sys,json; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if 'x86_64-apple-darwin.tar.gz' in a['name']]")
+        echo "Downloading bore from: $boreUrl"
+        curl -fSL --retry 3 --retry-delay 5 "$boreUrl" -o bore.tar.gz
         tar xzf bore.tar.gz
         chmod +x bore && mv bore resources/
         rm -f bore.tar.gz
