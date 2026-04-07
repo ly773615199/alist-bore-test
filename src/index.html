@@ -115,6 +115,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .info-value.pwd { color: var(--yellow); }
 
         .copy-btn {
             background: var(--border);
@@ -365,7 +366,7 @@
         <div class="info-row">
             <div class="info-label">🔑 管理员密码</div>
             <div class="info-value-row">
-                <span class="info-value" id="pwd-value">正在获取...</span>
+                <span class="info-value pwd" id="pwd-value">正在获取...</span>
                 <button class="copy-btn" onclick="copyText('pwd-value')">复制</button>
             </div>
         </div>

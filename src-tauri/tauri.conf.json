@@ -30,10 +30,7 @@
       ]
     },
     "security": {
-      "csp": null
-    },
-    "systemTray": {
-      "iconPath": "icons/icon.png"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
     },
     "windows": [
       {
@@ -41,7 +38,9 @@
         "title": "AList + Bore",
         "width": 480,
         "height": 640,
-        "resizable": false,
+        "minWidth": 400,
+        "minHeight": 500,
+        "resizable": true,
         "center": true
       }
     ]

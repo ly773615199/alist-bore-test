@@ -1,32 +1,33 @@
-name: Build
+name: Build & Release
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-    
+
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         override: true
-    
+
     - name: Install dependencies
       run: npm install
-    
+
     - name: Download AList and Bore binaries
       run: |
         New-Item -ItemType Directory -Force -Path resources
@@ -40,12 +41,19 @@ jobs:
         Expand-Archive -Path "bore.zip" -DestinationPath "bore-temp"
         Copy-Item -Path "bore-temp\bore.exe" -Destination "resources\bore.exe"
         Remove-Item -Recurse -Force "alist.zip", "alist-temp", "bore.zip", "bore-temp"
-    
+
     - name: Build
       run: npm run build
-    
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: alist-bore
         path: src-tauri\target\release\AListBore.exe
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: src-tauri\target\release\AListBore.exe
+        generate_release_notes: true

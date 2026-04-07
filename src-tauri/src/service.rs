@@ -2,7 +2,6 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::thread;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -29,12 +28,10 @@ impl AppState {
 impl Drop for AppState {
     fn drop(&mut self) {
         if let Some(mut child) = self.alist_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(&mut child);
         }
         if let Some(mut child) = self.bore_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(&mut child);
         }
     }
 }
@@ -100,56 +97,7 @@ fn password_file_path(app: &AppHandle) -> Result<PathBuf, String> {
         .ok_or_else(|| "无法获取数据目录".to_string())
 }
 
-/// 启动子进程，等待指定输出或超时，返回匹配行
-fn spawn_and_wait_output(
-    cmd: &mut Command,
-    timeout_secs: u64,
-    match_fn: impl Fn(&str) -> Option<String> + Send + 'static,
-) -> Result<String, String> {
-    let mut child = cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null()) // 修复：不 pipe stderr，避免死锁
-        .spawn()
-        .map_err(|e| format!("启动进程失败: {}", e))?;
-
-    let stdout = child.stdout.take().ok_or("无法获取 stdout")?;
-
-    let handle = thread::spawn(move || {
-        let reader = BufReader::new(stdout);
-        let start = Instant::now();
-
-        for line in reader.lines() {
-            if start.elapsed() > Duration::from_secs(timeout_secs) {
-                return Err("启动超时".to_string());
-            }
-
-            match line {
-                Ok(l) => {
-                    if let Some(result) = match_fn(&l) {
-                        return Ok(result);
-                    }
-                }
-                Err(_) => return Err("进程异常退出".to_string()),
-            }
-        }
-
-        Err("进程异常退出".to_string())
-    });
-
-    // 同时等待进程退出或输出匹配，带超时
-    let deadline = Instant::now() + Duration::from_secs(timeout_secs + 2);
-    loop {
-        if handle.is_finished() {
-            return handle.join().map_err(|_| "线程 panic".to_string())?;
-        }
-        if Instant::now() > deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err("启动超时".to_string());
-        }
-        thread::sleep(Duration::from_millis(100));
-    }
-}
+// spawn_and_wait_output 已移除：各启动函数直接管理子进程输出
 
 // ==================== Tauri 命令 ====================
 
@@ -251,9 +199,9 @@ pub async fn cmd_start_alist(
 #[tauri::command]
 pub async fn cmd_start_bore(
     state: State<'_, Mutex<AppState>>,
-    _app: AppHandle,
+    app: AppHandle,
 ) -> Result<String, String> {
-    let path = find_binary(&_app, BORE_BINARY)?;
+    let path = find_binary(&app, BORE_BINARY)?;
 
     let mut child = Command::new(&path)
         .arg("local")
@@ -313,11 +261,28 @@ pub fn cmd_stop_services(state: State<'_, Mutex<AppState>>) -> Result<(), String
     Ok(())
 }
 
+/// 跨平台杀进程树（Windows 用 taskkill 递归杀子进程）
+fn kill_child(child: &mut Child) {
+    let pid = child.id();
+    #[cfg(target_os = "windows")]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = child.kill();
+    }
+    let _ = child.wait();
+}
+
 fn kill_alist(state: &Mutex<AppState>) {
     if let Ok(mut s) = state.lock() {
         if let Some(mut child) = s.alist_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(&mut child);
         }
     }
 }
@@ -325,8 +290,7 @@ fn kill_alist(state: &Mutex<AppState>) {
 fn kill_bore(state: &Mutex<AppState>) {
     if let Ok(mut s) = state.lock() {
         if let Some(mut child) = s.bore_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(&mut child);
         }
     }
 }
@@ -424,16 +388,20 @@ fn base64_encode(input: &str) -> String {
 }
 
 fn base64_decode(input: &str) -> Option<String> {
-    let input = input.trim_end_matches('=');
+    let input = input.trim();
     let mut bytes = Vec::with_capacity(input.len() * 3 / 4);
     for chunk in input.as_bytes().chunks(4) {
         let mut triple: u32 = 0;
         let mut valid_bits = 0;
         for &c in chunk {
+            if c == b'=' {
+                break;
+            }
             let val = B64_CHARS.iter().position(|&b| b == c)? as u32;
             triple = (triple << 6) | val;
             valid_bits += 6;
         }
+        // 每个有效 6-bit 组贡献 6 bits，向下取整到完整字节
         while valid_bits >= 8 {
             valid_bits -= 8;
             bytes.push((triple >> valid_bits & 0xFF) as u8);
