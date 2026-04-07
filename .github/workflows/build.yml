@@ -15,25 +15,10 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            ext: .exe
-            archive-ext: .zip
-            extract-cmd: Expand-Archive
-            alist-name: alist-windows-amd64.zip
-            bore-platform: x86_64-pc-windows-msvc
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            ext: ""
-            archive-ext: .tar.gz
-            extract-cmd: tar
-            alist-name: alist-linux-amd64.tar.gz
-            bore-platform: x86_64-unknown-linux-musl
           - os: macos-latest
-            target: universal-apple-darwin
-            ext: ""
-            archive-ext: .tar.gz
-            extract-cmd: tar
-            alist-name: alist-darwin-amd64.tar.gz
-            bore-platform: x86_64-apple-darwin
+            target: x86_64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
@@ -58,47 +43,52 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path resources
         # AList
-        Invoke-WebRequest -Uri "https://github.com/AlistGo/alist/releases/latest/download/${{ matrix.alist-name }}" -OutFile "alist.zip"
+        Invoke-WebRequest -Uri "https://github.com/AlistGo/alist/releases/latest/download/alist-windows-amd64.zip" -OutFile "alist.zip" -UseBasicParsing
         Expand-Archive -Path "alist.zip" -DestinationPath "alist-temp"
         Copy-Item -Path "alist-temp\alist.exe" -Destination "resources\alist.exe"
+        Remove-Item -Recurse -Force "alist.zip", "alist-temp"
         # Bore
-        $boreTag = (Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" | ConvertFrom-Json).tag_name
-        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/$boreTag/bore-$boreTag-${{ matrix.bore-platform }}.zip" -OutFile "bore.zip"
+        $boreTag = (Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -UseBasicParsing | ConvertFrom-Json).tag_name
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/$boreTag/bore-$boreTag-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip" -UseBasicParsing
         Expand-Archive -Path "bore.zip" -DestinationPath "bore-temp"
         Copy-Item -Path "bore-temp\bore.exe" -Destination "resources\bore.exe"
-        Remove-Item -Recurse -Force "alist.zip", "alist-temp", "bore.zip", "bore-temp"
+        Remove-Item -Recurse -Force "bore.zip", "bore-temp"
 
     # ===== Linux =====
     - name: Download AList & Bore (Linux)
       if: runner.os == 'Linux'
       run: |
+        set -e
         mkdir -p resources
         # AList
-        curl -sL "https://github.com/AlistGo/alist/releases/latest/download/${{ matrix.alist-name }}" -o alist.tar.gz
-        tar xzf alist.tar.gz alist
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/AlistGo/alist/releases/latest/download/alist-linux-amd64.tar.gz" -o alist.tar.gz
+        tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
+        rm -f alist.tar.gz
         # Bore
-        boreTag=$(curl -s "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
-        curl -sL "https://github.com/ekzhang/bore/releases/download/$boreTag/bore-$boreTag-${{ matrix.bore-platform }}.tar.gz" -o bore.tar.gz
-        tar xzf bore.tar.gz bore
+        boreTag=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/ekzhang/bore/releases/download/${boreTag}/bore-${boreTag}-x86_64-unknown-linux-musl.tar.gz" -o bore.tar.gz
+        tar xzf bore.tar.gz
         chmod +x bore && mv bore resources/
-        rm -f alist.tar.gz bore.tar.gz
+        rm -f bore.tar.gz
 
     # ===== macOS =====
     - name: Download AList & Bore (macOS)
       if: runner.os == 'macOS'
       run: |
+        set -e
         mkdir -p resources
-        # AList (use amd64, works on both Intel and Apple Silicon via Rosetta)
-        curl -sL "https://github.com/AlistGo/alist/releases/latest/download/${{ matrix.alist-name }}" -o alist.tar.gz
-        tar xzf alist.tar.gz alist
+        # AList (amd64, works on both Intel and Apple Silicon via Rosetta)
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/AlistGo/alist/releases/latest/download/alist-darwin-amd64.tar.gz" -o alist.tar.gz
+        tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
+        rm -f alist.tar.gz
         # Bore
-        boreTag=$(curl -s "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
-        curl -sL "https://github.com/ekzhang/bore/releases/download/$boreTag/bore-$boreTag-${{ matrix.bore-platform }}.tar.gz" -o bore.tar.gz
-        tar xzf bore.tar.gz bore
+        boreTag=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+        curl -fSL --retry 3 --retry-delay 5 "https://github.com/ekzhang/bore/releases/download/${boreTag}/bore-${boreTag}-x86_64-apple-darwin.tar.gz" -o bore.tar.gz
+        tar xzf bore.tar.gz
         chmod +x bore && mv bore resources/
-        rm -f alist.tar.gz bore.tar.gz
+        rm -f bore.tar.gz
 
     - name: Build
       run: npm run build
@@ -111,15 +101,8 @@ jobs:
         name: alist-bore-${{ matrix.target }}
         path: src-tauri\target\release\AListBore.exe
 
-    - name: Upload artifact (Linux)
-      if: runner.os == 'Linux'
-      uses: actions/upload-artifact@v4
-      with:
-        name: alist-bore-${{ matrix.target }}
-        path: src-tauri/target/release/AListBore
-
-    - name: Upload artifact (macOS)
-      if: runner.os == 'macOS'
+    - name: Upload artifact (Linux/macOS)
+      if: runner.os != 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: alist-bore-${{ matrix.target }}
@@ -133,14 +116,8 @@ jobs:
         files: src-tauri\target\release\AListBore.exe
         generate_release_notes: true
 
-    - name: Create Release (Linux)
-      if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Linux'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: src-tauri/target/release/AListBore
-
-    - name: Create Release (macOS)
-      if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'macOS'
+    - name: Create Release (Linux/macOS)
+      if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
       uses: softprops/action-gh-release@v2
       with:
         files: src-tauri/target/release/AListBore
