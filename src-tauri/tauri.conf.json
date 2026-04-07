@@ -1,0 +1,49 @@
+{
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devPath": "../src",
+    "distDir": "../src",
+    "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "AListBore",
+    "version": "4.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": { "all": false, "open": ".*" },
+      "clipboard": { "writeText": true },
+      "dialog": { "all": false, "ask": true }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.alistbore.app",
+      "icon": [
+        "icons/icon.png",
+        "icons/icon.ico"
+      ],
+      "resources": [
+        "resources/alist.exe",
+        "resources/bore.exe"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
+    "systemTray": {
+      "iconPath": "icons/icon.png"
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "AList + Bore",
+        "width": 480,
+        "height": 640,
+        "resizable": false,
+        "center": true
+      }
+    ]
+  }
+}
