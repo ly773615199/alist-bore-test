@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AList + Bore</title>
+    <style>
+        /* ===== Catppuccin Mocha 主题 ===== */
+        :root {
+            --bg: #1e1e2e;
+            --card: #181825;
+            --border: #313244;
+            --border-hover: #45475a;
+            --text: #cdd6f4;
+            --sub: #6c7086;
+            --val: #f5c2e7;
+            --green: #a6e3a1;
+            --yellow: #f9e2af;
+            --red: #f38ba8;
+            --blue: #89b4fa;
+            --teal: #94e2d5;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #11111b, #181825);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px 24px;
+            user-select: none;
+        }
+
+        /* ===== 标题 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .header .subtitle {
+            font-size: 12px;
+            color: var(--sub);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin-bottom: 12px;
+        }
+
+        /* ===== 卡片 ===== */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: var(--border-hover); }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* ===== 信息行 ===== */
+        .info-row {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            transition: border-color 0.2s;
+        }
+        .info-row:hover { border-color: var(--border-hover); }
+
+        .info-label {
+            font-size: 11px;
+            color: var(--sub);
+            margin-bottom: 6px;
+        }
+
+        .info-value-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-value {
+            flex: 1;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--val);
+            background: transparent;
+            border: none;
+            outline: none;
+            cursor: default;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            background: var(--border);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            min-width: 48px;
+        }
+        .copy-btn:hover { background: var(--border-hover); }
+        .copy-btn.copied {
+            background: var(--green);
+            color: #1e1e2e;
+            font-weight: 700;
+        }
+
+        /* ===== 密码提示 ===== */
+        .pwd-hint {
+            font-size: 11px;
+            margin: -4px 0 8px 4px;
+            min-height: 16px;
+        }
+
+        /* ===== 按钮行 ===== */
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .btn {
+            height: 38px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #1e1e2e;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled {
+            background: #45475a !important;
+            color: #6c7086;
+            cursor: not-allowed;
+            transform: none;
+            filter: none;
+        }
+
+        .btn-stop { background: var(--red); }
+        .btn-restart { background: var(--blue); }
+        .btn-help { background: var(--teal); }
+
+        /* ===== 底部 ===== */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #585b70;
+            margin-top: 8px;
+        }
+
+        /* ===== 帮助面板 ===== */
+        #help-view {
+            display: none;
+        }
+
+        .help-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .back-btn {
+            background: var(--border);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .back-btn:hover { background: var(--border-hover); }
+
+        .help-title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .help-scroll {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .help-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .help-scroll::-webkit-scrollbar-track {
+            background: var(--card);
+            border-radius: 3px;
+        }
+        .help-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .step {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+        }
+        .step h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .step p, .step li {
+            font-size: 12px;
+            color: #a6adc8;
+            line-height: 1.7;
+        }
+        .step ul {
+            padding-left: 18px;
+        }
+        .step .highlight {
+            color: var(--val);
+            font-family: 'Cascadia Code', monospace;
+            font-weight: 700;
+        }
+        .step .warn {
+            color: var(--yellow);
+        }
+
+        /* ===== 确认弹窗 ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        .modal p {
+            font-size: 12px;
+            color: #a6adc8;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+        .modal .info-line {
+            color: var(--val);
+            font-family: 'Cascadia Code', monospace;
+        }
+        .modal-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .modal-btns button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-cancel {
+            background: var(--border);
+            color: var(--text);
+        }
+        .btn-cancel:hover {
+            background: var(--border-hover);
+        }
+        .btn-confirm {
+            background: var(--red);
+            color: #1e1e2e;
+        }
+        .btn-confirm:hover {
+            filter: brightness(1.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== 正常视图 ===== -->
+    <div id="normal-view">
+        <div class="header">
+            <h1>AList + Bore</h1>
+            <span class="subtitle">便携网盘 · 内网穿透</span>
+        </div>
+        <div class="divider"></div>
+
+        <!-- 服务卡片 -->
+        <div class="card">
+            <span class="card-title">📂  AList 文件服务</span>
+            <span class="status" id="alist-status" style="color: var(--yellow)">启动中...</span>
+        </div>
+        <div class="card">
+            <span class="card-title">🌐  Bore 内网穿透</span>
+            <span class="status" id="bore-status" style="color: var(--sub)">等待中...</span>
+        </div>
+
+        <!-- 外网地址 -->
+        <div class="info-row">
+            <div class="info-label">🌐 外网访问地址</div>
+            <div class="info-value-row">
+                <span class="info-value" id="url-value">正在获取...</span>
+                <button class="copy-btn" onclick="copyText('url-value')">复制</button>
+            </div>
+        </div>
+
+        <!-- 本地地址 -->
+        <div class="info-row">
+            <div class="info-label">🏠 本地管理地址</div>
+            <div class="info-value-row">
+                <span class="info-value" id="local-value">http://localhost:5244</span>
+                <button class="copy-btn" onclick="copyText('local-value')">复制</button>
+            </div>
+        </div>
+
+        <!-- 密码 -->
+        <div class="info-row">
+            <div class="info-label">🔑 管理员密码</div>
+            <div class="info-value-row">
+                <span class="info-value" id="pwd-value">正在获取...</span>
+                <button class="copy-btn" onclick="copyText('pwd-value')">复制</button>
+            </div>
+        </div>
+        <div class="pwd-hint" id="pwd-hint"></div>
+
+        <!-- 按钮 -->
+        <div class="btn-row">
+            <button class="btn btn-stop" id="stop-btn" onclick="stopServices()" disabled>停止服务</button>
+            <button class="btn btn-restart" id="restart-btn" onclick="restartServices()" disabled>重启服务</button>
+            <button class="btn btn-help" id="help-btn" onclick="toggleHelp()">使用帮助</button>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <span id="startup-time">启动耗时: --</span>
+            <span id="uptime">运行时间: --</span>
+        </div>
+    </div>
+
+    <!-- ===== 帮助视图 ===== -->
+    <div id="help-view">
+        <div class="help-top">
+            <button class="back-btn" onclick="toggleHelp()">← 返回</button>
+            <h2 class="help-title">使用帮助</h2>
+        </div>
+        <div class="help-scroll">
+            <div class="step">
+                <h3>1. 首次启动</h3>
+                <p>1. 双击 <span class="highlight">AListBore.exe</span> 启动应用</p>
+                <p>2. 等待服务启动完成（约 5-10 秒）</p>
+                <p>3. 自动打开本地管理页面 <span class="highlight">http://localhost:5244</span></p>
+                <p>4. 使用界面显示的初始密码登录</p>
+            </div>
+            <div class="step">
+                <h3>2. 添加存储</h3>
+                <p>登录后，点击左侧菜单栏的 <span class="highlight">存储</span> → <span class="highlight">添加</span></p>
+                <p>支持的存储类型：</p>
+                <ul>
+                    <li>本地存储</li>
+                    <li>OneDrive / Google Drive</li>
+                    <li>阿里云盘 / 百度网盘</li>
+                    <li>WebDAV / SFTP</li>
+                    <li>以及更多...</li>
+                </ul>
+            </div>
+            <div class="step">
+                <h3>3. 外网访问</h3>
+                <p>应用会自动启动 bore 内网穿透，生成外网访问地址</p>
+                <p>格式：<span class="highlight">http://bore.pub:端口号</span></p>
+                <p>注意：bore.pub 是公共服务，适合临时分享，不建议用于长期存储敏感数据</p>
+            </div>
+            <div class="step">
+                <h3>4. 安全建议</h3>
+                <p>1. <span class="warn">首次登录后立即修改密码</span></p>
+                <p>2. 定期备份重要数据</p>
+                <p>3. 不要在公共网络环境下使用默认密码</p>
+                <p>4. 如需长期稳定访问，建议使用自己的服务器搭建 bore 服务</p>
+            </div>
+            <div class="step">
+                <h3>5. 常见问题</h3>
+                <p><strong>Q: 启动失败？</strong></p>
+                <p>A: 请确保 <span class="highlight">alist.exe</span> 和 <span class="highlight">bore.exe</span> 与应用程序放在同一目录</p>
+                <p><strong>Q: 外网地址无法访问？</strong></p>
+                <p>A: 检查本地防火墙是否允许 5244 端口，或尝试重启应用</p>
+                <p><strong>Q: 密码丢失？</strong></p>
+                <p>A: 密码已保存在本地，重新启动应用会自动加载</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 退出确认弹窗 ===== -->
+    <div class="modal-overlay" id="quit-modal">
+        <div class="modal">
+            <h2>确认退出</h2>
+            <p>服务将被停止，以下信息将不再可用：</p>
+            <p class="info-line" id="quit-url">外网地址: --</p>
+            <p class="info-line" id="quit-pwd">管理员密码: --</p>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="hideQuitModal()">取消</button>
+                <button class="btn-confirm" onclick="quitApp()">确认退出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let startTime = Date.now();
+        let uptimeInterval = null;
+
+        // DOM 元素
+        const elements = {
+            alistStatus: document.getElementById('alist-status'),
+            boreStatus: document.getElementById('bore-status'),
+            urlValue: document.getElementById('url-value'),
+            pwdValue: document.getElementById('pwd-value'),
+            pwdHint: document.getElementById('pwd-hint'),
+            stopBtn: document.getElementById('stop-btn'),
+            restartBtn: document.getElementById('restart-btn'),
+            startupTime: document.getElementById('startup-time'),
+            uptime: document.getElementById('uptime'),
+            quitModal: document.getElementById('quit-modal'),
+            quitUrl: document.getElementById('quit-url'),
+            quitPwd: document.getElementById('quit-pwd')
+        };
+
+        // 初始化
+        async function init() {
+            try {
+                // 获取密码状态
+                const { invoke } = window.__TAURI__;
+                const [password, savedAt, isFirst] = await invoke('cmd_get_password');
+                
+                // 启动 AList
+                const [alistPwd, isNew] = await invoke('cmd_start_alist');
+                elements.alistStatus.textContent = '运行中';
+                elements.alistStatus.style.color = 'var(--green)';
+                
+                if (isNew) {
+                    elements.pwdValue.textContent = alistPwd;
+                    elements.pwdHint.textContent = '✅ 首次启动，密码已自动保存到本地';
+                    elements.pwdHint.style.color = 'var(--green)';
+                } else if (password) {
+                    elements.pwdValue.textContent = password;
+                    elements.pwdHint.textContent = '从本地文件加载';
+                    elements.pwdHint.style.color = 'var(--sub)';
+                }
+                
+                // 启动 bore
+                const url = await invoke('cmd_start_bore');
+                elements.urlValue.textContent = url;
+                elements.boreStatus.textContent = '已穿透';
+                elements.boreStatus.style.color = 'var(--green)';
+                
+                // 启用按钮
+                elements.stopBtn.disabled = false;
+                elements.restartBtn.disabled = false;
+                
+                // 计算启动时间
+                const startupMs = Date.now() - startTime;
+                elements.startupTime.textContent = `启动耗时: ${(startupMs / 1000).toFixed(1)}s`;
+                
+                // 启动运行时间计时器
+                startUptimeTimer();
+                
+                // 首次启动打开浏览器和帮助
+                if (isFirst) {
+                    await invoke('cmd_open_url', { url: 'http://localhost:5244' });
+                    toggleHelp();
+                }
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                elements.alistStatus.textContent = '启动失败';
+                elements.alistStatus.style.color = 'var(--red)';
+                elements.boreStatus.textContent = '未启动';
+                elements.boreStatus.style.color = 'var(--sub)';
+            }
+        }
+
+        // 启动运行时间计时器
+        function startUptimeTimer() {
+            uptimeInterval = setInterval(() => {
+                const uptimeMs = Date.now() - startTime;
+                const hours = Math.floor(uptimeMs / (1000 * 60 * 60));
+                const minutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
+                elements.uptime.textContent = `运行时间: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // 停止服务
+        async function stopServices() {
+            try {
+                const { invoke } = window.__TAURI__;
+                await invoke('cmd_stop_services');
+                
+                elements.alistStatus.textContent = '已停止';
+                elements.alistStatus.style.color = 'var(--sub)';
+                elements.boreStatus.textContent = '已停止';
+                elements.boreStatus.style.color = 'var(--sub)';
+                
+                elements.stopBtn.disabled = true;
+                elements.restartBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('停止服务失败:', error);
+            }
+        }
+
+        // 重启服务
+        async function restartServices() {
+            try {
+                const { invoke } = window.__TAURI__;
+                
+                // 先停止服务
+                await invoke('cmd_stop_services');
+                
+                // 重置状态
+                elements.alistStatus.textContent = '启动中...';
+                elements.alistStatus.style.color = 'var(--yellow)';
+                elements.boreStatus.textContent = '等待中...';
+                elements.boreStatus.style.color = 'var(--sub)';
+                elements.urlValue.textContent = '正在获取...';
+                
+                // 重新启动 AList
+                const [password, isNew] = await invoke('cmd_start_alist');
+                elements.alistStatus.textContent = '运行中';
+                elements.alistStatus.style.color = 'var(--green)';
+                
+                if (isNew) {
+                    elements.pwdValue.textContent = password;
+                    elements.pwdHint.textContent = '✅ 密码已更新并保存';
+                    elements.pwdHint.style.color = 'var(--green)';
+                }
+                
+                // 重新启动 bore
+                const url = await invoke('cmd_start_bore');
+                elements.urlValue.textContent = url;
+                elements.boreStatus.textContent = '已穿透';
+                elements.boreStatus.style.color = 'var(--green)';
+                
+                elements.stopBtn.disabled = false;
+                elements.restartBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('重启服务失败:', error);
+                elements.alistStatus.textContent = '启动失败';
+                elements.alistStatus.style.color = 'var(--red)';
+            }
+        }
+
+        // 切换帮助视图
+        function toggleHelp() {
+            const normalView = document.getElementById('normal-view');
+            const helpView = document.getElementById('help-view');
+            
+            if (helpView.style.display === 'none') {
+                normalView.style.display = 'none';
+                helpView.style.display = 'block';
+            } else {
+                helpView.style.display = 'none';
+                normalView.style.display = 'block';
+            }
+        }
+
+        // 复制文本
+        async function copyText(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            try {
+                const { clipboard } = window.__TAURI__;
+                await clipboard.writeText(text);
+                
+                // 按钮反馈
+                const button = element.nextElementSibling;
+                const originalText = button.textContent;
+                button.textContent = '已复制';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 1500);
+                
+            } catch (error) {
+                console.error('复制失败:', error);
+            }
+        }
+
+        // 显示退出确认弹窗
+        function showQuitModal() {
+            elements.quitUrl.textContent = `外网地址: ${elements.urlValue.textContent}`;
+            elements.quitPwd.textContent = `管理员密码: ${elements.pwdValue.textContent}`;
+            elements.quitModal.classList.add('show');
+        }
+
+        // 隐藏退出确认弹窗
+        function hideQuitModal() {
+            elements.quitModal.classList.remove('show');
+        }
+
+        // 退出应用
+        async function quitApp() {
+            try {
+                const { invoke } = window.__TAURI__;
+                await invoke('cmd_quit_app');
+            } catch (error) {
+                console.error('退出失败:', error);
+            }
+        }
+
+        // 监听系统托盘事件
+        async function setupEventListeners() {
+            const { event } = window.__TAURI__;
+            
+            // 监听托盘退出事件
+            await event.listen('tray-quit', showQuitModal);
+            
+            // 监听托盘帮助事件
+            await event.listen('tray-help', toggleHelp);
+            
+            // 监听托盘信息事件
+            await event.listen('tray-info', () => {
+                // 可以在这里显示连接信息的弹窗
+            });
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            await setupEventListeners();
+            init();
+        });
+    </script>
+</body>
+</html>
