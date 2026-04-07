@@ -24,10 +24,7 @@
         "icons/icon.png",
         "icons/icon.ico"
       ],
-      "resources": [
-        "resources/alist.exe",
-        "resources/bore.exe"
-      ]
+      "resources": []
     },
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
