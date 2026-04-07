@@ -478,19 +478,27 @@
                 const { invoke } = window.__TAURI__;
                 const [password, savedAt, isFirst] = await invoke('cmd_get_password');
                 
+                // 先显示已保存的密码
+                if (password) {
+                    elements.pwdValue.textContent = password;
+                    elements.pwdHint.textContent = isFirst ? '首次启动，将自动生成新密码' : '从本地文件加载';
+                    elements.pwdHint.style.color = isFirst ? 'var(--yellow)' : 'var(--sub)';
+                }
+                
                 // 启动 AList
                 const [alistPwd, isNew] = await invoke('cmd_start_alist');
                 elements.alistStatus.textContent = '运行中';
                 elements.alistStatus.style.color = 'var(--green)';
                 
-                if (isNew) {
+                if (alistPwd) {
                     elements.pwdValue.textContent = alistPwd;
-                    elements.pwdHint.textContent = '✅ 首次启动，密码已自动保存到本地';
-                    elements.pwdHint.style.color = 'var(--green)';
-                } else if (password) {
-                    elements.pwdValue.textContent = password;
-                    elements.pwdHint.textContent = '从本地文件加载';
-                    elements.pwdHint.style.color = 'var(--sub)';
+                    if (isNew) {
+                        elements.pwdHint.textContent = '✅ 首次启动，密码已自动保存到本地';
+                        elements.pwdHint.style.color = 'var(--green)';
+                    } else if (password) {
+                        elements.pwdHint.textContent = '已加载本地保存的密码';
+                        elements.pwdHint.style.color = 'var(--sub)';
+                    }
                 }
                 
                 // 启动 bore
@@ -522,6 +530,8 @@
                 elements.alistStatus.style.color = 'var(--red)';
                 elements.boreStatus.textContent = '未启动';
                 elements.boreStatus.style.color = 'var(--sub)';
+                elements.pwdHint.textContent = '❌ ' + error;
+                elements.pwdHint.style.color = 'var(--red)';
             }
         }
 
@@ -569,16 +579,24 @@
                 elements.boreStatus.textContent = '等待中...';
                 elements.boreStatus.style.color = 'var(--sub)';
                 elements.urlValue.textContent = '正在获取...';
+                elements.pwdValue.textContent = '正在获取...';
+                elements.pwdHint.textContent = '';
                 
                 // 重新启动 AList
                 const [password, isNew] = await invoke('cmd_start_alist');
                 elements.alistStatus.textContent = '运行中';
                 elements.alistStatus.style.color = 'var(--green)';
                 
-                if (isNew) {
+                // 修复：无论是否新密码都更新显示
+                if (password) {
                     elements.pwdValue.textContent = password;
-                    elements.pwdHint.textContent = '✅ 密码已更新并保存';
-                    elements.pwdHint.style.color = 'var(--green)';
+                    if (isNew) {
+                        elements.pwdHint.textContent = '✅ 新密码已更新并保存';
+                        elements.pwdHint.style.color = 'var(--green)';
+                    } else {
+                        elements.pwdHint.textContent = '已加载本地保存的密码';
+                        elements.pwdHint.style.color = 'var(--sub)';
+                    }
                 }
                 
                 // 重新启动 bore
@@ -594,6 +612,8 @@
                 console.error('重启服务失败:', error);
                 elements.alistStatus.textContent = '启动失败';
                 elements.alistStatus.style.color = 'var(--red)';
+                elements.pwdHint.textContent = '❌ ' + error;
+                elements.pwdHint.style.color = 'var(--red)';
             }
         }
 
@@ -602,7 +622,10 @@
             const normalView = document.getElementById('normal-view');
             const helpView = document.getElementById('help-view');
             
-            if (helpView.style.display === 'none') {
+            // 修复：用 getComputedStyle 读取实际显示状态，而非 style.display
+            const helpVisible = window.getComputedStyle(helpView).display !== 'none';
+            
+            if (!helpVisible) {
                 normalView.style.display = 'none';
                 helpView.style.display = 'block';
             } else {
@@ -658,25 +681,8 @@
             }
         }
 
-        // 监听系统托盘事件
-        async function setupEventListeners() {
-            const { event } = window.__TAURI__;
-            
-            // 监听托盘退出事件
-            await event.listen('tray-quit', showQuitModal);
-            
-            // 监听托盘帮助事件
-            await event.listen('tray-help', toggleHelp);
-            
-            // 监听托盘信息事件
-            await event.listen('tray-info', () => {
-                // 可以在这里显示连接信息的弹窗
-            });
-        }
-
         // 页面加载完成后初始化
         window.addEventListener('DOMContentLoaded', async () => {
-            await setupEventListeners();
             init();
         });
     </script>
