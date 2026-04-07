@@ -33,6 +33,13 @@ jobs:
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
 
+    # ===== Linux 系统依赖 =====
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
     - name: Install dependencies
       run: npm install
 
@@ -47,8 +54,9 @@ jobs:
         Expand-Archive -Path "alist.zip" -DestinationPath "alist-temp"
         Copy-Item -Path "alist-temp\alist.exe" -Destination "resources\alist.exe"
         Remove-Item -Recurse -Force "alist.zip", "alist-temp"
-        # Bore - get exact download URL from API
-        $assets = Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -UseBasicParsing | ConvertFrom-Json
+        # Bore - use GitHub API to get exact download URL
+        $headers = @{ "Accept" = "application/vnd.github+json" }
+        $assets = Invoke-WebRequest -Uri "https://api.github.com/repos/ekzhang/bore/releases/latest" -Headers $headers -UseBasicParsing | ConvertFrom-Json
         $boreUrl = ($assets.assets | Where-Object { $_.name -like "*x86_64-pc-windows-msvc.zip" }).browser_download_url
         Invoke-WebRequest -Uri $boreUrl -OutFile "bore.zip" -UseBasicParsing
         Expand-Archive -Path "bore.zip" -DestinationPath "bore-temp"
@@ -67,8 +75,9 @@ jobs:
         tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
         rm -f alist.tar.gz
-        # Bore - get exact download URL from API
-        boreUrl=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" \
+        # Bore - use GitHub API with Accept header to avoid rate limit
+        boreUrl=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/ekzhang/bore/releases/latest" \
           | python3 -c "import sys,json; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if 'x86_64-unknown-linux-musl.tar.gz' in a['name']]")
         echo "Downloading bore from: $boreUrl"
         curl -fSL --retry 3 --retry-delay 5 "$boreUrl" -o bore.tar.gz
@@ -88,8 +97,9 @@ jobs:
         tar xzf alist.tar.gz
         chmod +x alist && mv alist resources/
         rm -f alist.tar.gz
-        # Bore - get exact download URL from API
-        boreUrl=$(curl -fsSL "https://api.github.com/repos/ekzhang/bore/releases/latest" \
+        # Bore - use GitHub API with Accept header to avoid rate limit
+        boreUrl=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/ekzhang/bore/releases/latest" \
           | python3 -c "import sys,json; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if 'x86_64-apple-darwin.tar.gz' in a['name']]")
         echo "Downloading bore from: $boreUrl"
         curl -fSL --retry 3 --retry-delay 5 "$boreUrl" -o bore.tar.gz
