@@ -1,0 +1,12 @@
+{
+  "name": "alist-bore",
+  "version": "4.0.0",
+  "description": "AList + Bore 便携网盘一体化工具",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0"
+  }
+}
